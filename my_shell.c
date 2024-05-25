@@ -4,6 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include<signal.h>
 
 #define MAX_INPUT_SIZE 1024
 #define MAX_TOKEN_SIZE 64
@@ -11,7 +12,7 @@
 #define MAX_BG_PROCS 64
 
 int bg_procs_idx = 0;
-int bg_procs[MAX_BG_PROCS];
+int *bg_procs;
 
 void add_bg_procs(int pid){
 	if(bg_procs_idx == MAX_BG_PROCS){
@@ -72,20 +73,21 @@ void start_executing(char** tokens, int is_background){
 			printf("Unable to change the directory with the gven path");
 		}
 		return;
-	}
-	int pid = fork();
-
-	if( pid == 0){
-		// child process execution
-		if(execvp(tokens[0], tokens) == -1){
-			printf("Wrong Command");
-		}
 	}else{
-		// parent process execution
-		if(is_background == 1){
-			add_bg_procs(pid);
+		int pid = fork();
+
+		if( pid == 0){
+			// child process execution
+			if(execvp(tokens[0], tokens) == -1){
+				printf("Wrong Command");
+			}
 		}else{
-			waitpid(pid,NULL,0);
+			// parent process execution
+			if(is_background == 1){
+				add_bg_procs(pid);
+			}else{
+				waitpid(pid,NULL,0);
+			}
 		}
 	} 
 }
@@ -94,7 +96,9 @@ int main(int argc, char* argv[]) {
 	char  line[MAX_INPUT_SIZE];            
 	char  **tokens;              
 
-
+	bg_procs = (int*)malloc(sizeof(int));
+	fflush(stdout);
+	int is_exited = 0;
 	while(1) {			
 		/* BEGIN: TAKING INPUT */
 		bzero(line, sizeof(line));
@@ -114,8 +118,22 @@ int main(int argc, char* argv[]) {
 			}
 		}
 
+		if(strcmp(tokens[0], "exit") == 0){
+			for(int i = 0; i<bg_procs_idx; i++){
+				kill(bg_procs[i], SIGKILL);
+				int status = 0;
+				int reaped_pid = waitpid(bg_procs[i],&status,0);
+				if(WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL){
+					printf("%d is_reaped %d\n", bg_procs[i], reaped_pid);
+				}else{
+					printf("Unexpected Normal Exit");
+				}
+				is_exited = 1;
+			}
+		}else{
+			start_executing(tokens, is_background);
+		}
 
-		start_executing(tokens, is_background);
        
 		// Freeing the allocated memory	
 		for(int i=0;tokens[i]!=NULL;i++){
@@ -123,11 +141,19 @@ int main(int argc, char* argv[]) {
 		}
 		free(tokens);
 
-		reap_bg_procs();
+		if(is_exited == 0){
+			reap_bg_procs();
+		}else{
+			free(bg_procs);
+			break;
+		}
 	}
-	while(bg_procs_idx > 0){
-		reap_bg_procs();
-		sleep(1);
+
+	if(is_exited == 0){
+		while(bg_procs_idx > 0){
+			reap_bg_procs();
+			sleep(1);
+		}
 	}
 	return 0;
 }
