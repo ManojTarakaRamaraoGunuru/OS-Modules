@@ -4,7 +4,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include<signal.h>
+#include <signal.h>
 
 #define MAX_INPUT_SIZE 1024
 #define MAX_TOKEN_SIZE 64
@@ -16,7 +16,7 @@ int *bg_procs;
 
 void add_bg_procs(int pid){
 	if(bg_procs_idx == MAX_BG_PROCS){
-		printf("Reached Maximum limit of Background processes, Can't handle any more");
+		printf("Reached Maximum limit of Background processes, Can't handle any more\n");
 	}
 	bg_procs[bg_procs_idx] = pid;
 	bg_procs_idx++;
@@ -26,7 +26,7 @@ void reap_bg_procs(){
 	for(int i = 0; i<=bg_procs_idx; i++){
 		int pid = waitpid(bg_procs[i],NULL,WNOHANG);
 		if(pid > 0){
-			printf("Shell: Background process finished");
+			printf("Shell: Background process finished\n");
 			bg_procs[i] = bg_procs[bg_procs_idx];
 			bg_procs_idx--;
 		}
@@ -78,11 +78,19 @@ void start_executing(char** tokens, int is_background){
 
 		if( pid == 0){
 			// child process execution
+			// When you click ctrl + c it sends a SIGTERM signal to shell and child processes as they belong to the same parent group
+			// Changed parent group of background child processes sothat only shell process and foreground (currently running) process is terminated
+			if(is_background == 1){
+				setpgid(getpid(), 0);
+			}
+			
+			printf("child process - id: %d pgid: %d\n",getpid(), getpgid(getpid()));
 			if(execvp(tokens[0], tokens) == -1){
 				printf("Wrong Command");
 			}
 		}else{
 			// parent process execution
+			printf("Main process - id: %d pgid: %d\n",getpid(), getpgid(getpid()));
 			if(is_background == 1){
 				add_bg_procs(pid);
 			}else{
@@ -92,7 +100,17 @@ void start_executing(char** tokens, int is_background){
 	} 
 }
 
+void handle_sigint(int i, siginfo_t* info, void* ctxt){
+	printf("I am running\n");
+	exit(0);
+}
+
 int main(int argc, char* argv[]) {
+
+	struct sigaction sa = {0};
+	sa.sa_sigaction = &handle_sigint;
+	sigaction(SIGINT, &sa, NULL);
+
 	char  line[MAX_INPUT_SIZE];            
 	char  **tokens;              
 
@@ -126,10 +144,10 @@ int main(int argc, char* argv[]) {
 				if(WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL){
 					printf("%d is_reaped %d\n", bg_procs[i], reaped_pid);
 				}else{
-					printf("Unexpected Normal Exit");
+					printf("Unexpected Normal Exit\n");
 				}
-				is_exited = 1;
 			}
+			is_exited = 1;
 		}else{
 			start_executing(tokens, is_background);
 		}
