@@ -22,6 +22,10 @@ void add_bg_procs(int pid){
 	bg_procs_idx++;
 }
 
+/* Despite background process is exited normally or reached exit by kill signal
+* process table will have still infromation about the child process and they need to be reaped otherwise they will stay
+* as zombie process and exhaust the process table, In general init process will take care of this reaping of zombie processes
+*/ 
 void reap_bg_procs(){
 	for(int i = 0; i<=bg_procs_idx; i++){
 		int pid = waitpid(bg_procs[i],NULL,WNOHANG);
@@ -79,18 +83,18 @@ void start_executing(char** tokens, int is_background){
 		if( pid == 0){
 			// child process execution
 			// When you click ctrl + c it sends a SIGTERM signal to shell and child processes as they belong to the same parent group
-			// Changed parent group of background child processes sothat only shell process and foreground (currently running) process is terminated
+			// Changed parent group of background child processes so that only shell process and foreground (currently running) process is terminated
 			if(is_background == 1){
 				setpgid(getpid(), 0);
 			}
 			
-			printf("child process - id: %d pgid: %d\n",getpid(), getpgid(getpid()));
+			// printf("child process - id: %d pgid: %d\n",getpid(), getpgid(getpid()));
 			if(execvp(tokens[0], tokens) == -1){
 				printf("Wrong Command");
 			}
 		}else{
 			// parent process execution
-			printf("Main process - id: %d pgid: %d\n",getpid(), getpgid(getpid()));
+			// printf("Main process - id: %d pgid: %d\n",getpid(), getpgid(getpid()));
 			if(is_background == 1){
 				add_bg_procs(pid);
 			}else{
@@ -101,8 +105,60 @@ void start_executing(char** tokens, int is_background){
 }
 
 void handle_sigint(int i, siginfo_t* info, void* ctxt){
-	printf("I am running\n");
+	printf("Exiting without disturbring background processes\n");
 	exit(0);
+}
+
+char*** make_cmds(char** tokens, int* cmd_type){
+	char*** cmds = (char***)malloc(sizeof(char**) * MAX_BG_PROCS);
+	int cmds_itr = 0;
+	char** cmd = (char**)calloc(MAX_NUM_TOKENS, sizeof(char*));
+	int cmd_itr = 0;
+
+	for(int i = 0; tokens[i]!=NULL; i++){
+		if(strcmp(tokens[i], "&") == 0 || strcmp(tokens[i], "&&") == 0 || strcmp(tokens[i], "&&&") == 0){
+			cmd[cmd_itr] = NULL;
+			cmds[cmds_itr] = cmd;
+			cmds_itr += 1;
+			cmd_itr = 0;
+			*cmd_type = 1;
+			if(strcmp(tokens[i], "&&") == 0 ){
+				*cmd_type = 2;
+				cmd = (char**)calloc(MAX_NUM_TOKENS, sizeof(char*));
+			}else if(strcmp(tokens[i], "&&&") == 0){
+				*cmd_type = 3;
+				cmd = (char**)calloc(MAX_NUM_TOKENS, sizeof(char*));
+			}
+		}
+		else{
+			cmd[cmd_itr] = tokens[i];
+			cmd_itr++;
+		}
+	}
+	cmd[cmd_itr] = NULL;
+	cmds[cmds_itr] = cmd;
+
+	cmds_itr += 1;
+	cmds[cmds_itr] = NULL;
+	return cmds;
+}
+
+void execute_cmd(char** cmd, int is_background, int* is_exited){
+	if(strcmp(cmd[0], "exit") == 0){
+		for(int i = 0; i<bg_procs_idx; i++){
+			kill(bg_procs[i], SIGKILL);
+			int status = 0;
+			int reaped_pid = waitpid(bg_procs[i],&status,0);
+			if(WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL){
+				printf("%d %d is_reaped \n", bg_procs[i], reaped_pid);
+			}else{
+				printf("Unexpected Normal Exit\n");
+			}
+		}
+		*is_exited = 1;
+	}else{
+		start_executing(cmd, is_background);
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -127,32 +183,16 @@ int main(int argc, char* argv[]) {
 		line[strlen(line)] = '\n'; //terminate with new line
 		tokens = tokenize(line);
 
-		char** temp = tokens;
-		int is_background = 0;
-		for(int i = 0; temp[i]!=NULL; i++){
-			if(strcmp(temp[i], "&") == 0) {
+		int cmd_type = 0, is_background = 0;
+		char*** cmds = make_cmds(tokens, &cmd_type);
+		for(int i = 0; cmds[i]!=NULL; i++){
+			if(cmd_type == 1 || cmd_type == 3){
 				is_background = 1;
-				tokens[i] = NULL;
 			}
+			execute_cmd(cmds[i], is_background, &is_exited);
 		}
+		free(cmds);
 
-		if(strcmp(tokens[0], "exit") == 0){
-			for(int i = 0; i<bg_procs_idx; i++){
-				kill(bg_procs[i], SIGKILL);
-				int status = 0;
-				int reaped_pid = waitpid(bg_procs[i],&status,0);
-				if(WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL){
-					printf("%d is_reaped %d\n", bg_procs[i], reaped_pid);
-				}else{
-					printf("Unexpected Normal Exit\n");
-				}
-			}
-			is_exited = 1;
-		}else{
-			start_executing(tokens, is_background);
-		}
-
-       
 		// Freeing the allocated memory	
 		for(int i=0;tokens[i]!=NULL;i++){
 			free(tokens[i]);
