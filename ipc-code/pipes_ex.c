@@ -31,16 +31,16 @@ int main(){
         close(fd[0]); // close read descriptor in the child process
         if(write(fd[1], arr, len*sizeof(char)) == -1){
             printf("Issue in writing into the buffer\n");
-            return 2;
+            return 1;
         }
         close(fd[1]); // write finished, close write descriptor
 
     }else{
         char arr[MAX_LEN];
         close(fd[1]); // close write descriptor in the main process
-        if(read(fd[0], arr, len*sizeof(char)) == - 1){   // also acts as blocking system call until child process writes into buffer
+        if(read(fd[0], arr, len*sizeof(char)) == -1){   // also acts as blocking system call until child process writes into buffer
             printf("Issue in Reading from the buffer\n");
-            return 2;
+            return 1;
         }
         printf("%s", arr);
         close(fd[0]); // read finished, close read descriptor
