@@ -5,13 +5,15 @@
 #include<sys/types.h>
 #include<sys/stat.h>
 #include<fcntl.h>
+#include<string.h>
 
 int main(){
     if(mkfifo("my_fifo", 0777) == -1){
+        // printf("%s", strerror(errno));
         if(errno != EEXIST){
             printf("Unable to create fifo");
+            return 1;
         }
-        return 1;
     }
     
     int fd = open("my_fifo",O_WRONLY);
