@@ -7,6 +7,8 @@
 #include<fcntl.h>
 #include<string.h>
 
+// Goal : Colect an array from user input and send it to the other process using fifo
+
 int main(){
     if(mkfifo("my_fifo", 0777) == -1){
         // printf("%s", strerror(errno));
@@ -17,13 +19,27 @@ int main(){
     }
     
     int fd = open("my_fifo",O_WRONLY);
+    if (fd == -1) {
+        perror("Error opening FIFO");
+        return 1;
+    }
 
-    int x = 97;
-    
-    if(write(fd, &x, sizeof(int)) == -1){
+    int n; scanf("%d",&n);
+    if(write(fd, &n, sizeof(int)) == -1){
         printf("Issue at writing");
         return 1;
     }
+
+    int* arr = (int *)malloc(sizeof(int));
+    for(int i = 0; i<n; i++){
+        scanf("%d", &arr[i]);
+        printf("%d ",arr[i]);
+        if(write(fd, &arr[i], sizeof(int)) == -1){
+            printf("Issue at writing");
+            return 1;
+        }
+    }
+    free(arr);
 
     close(fd);
 

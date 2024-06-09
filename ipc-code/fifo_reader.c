@@ -9,26 +9,36 @@
 
 // Unlike pipes that can estabilish communication between processes of same hierarchy, named pipes(fifo)
 // can establish communication between processes of different hierarchies
+// program of writer or reader will not terminate unless the other also consumes
 
 int main(){
     if(mkfifo("my_fifo", 0777) == -1){
         // printf("%s", strerror(errno));
         if(errno != EEXIST){
-            printf("Unable to create fifo");
+            perror("Unable to create fifo");
             return 1;
         }
     }
     
     int fd = open("my_fifo",O_RDONLY);
 
-    int x;
+    int n;
     
-    if(read(fd, &x, sizeof(int))==-1){
+    if(read(fd, &n, sizeof(int))==-1){
         printf("Issue at reading");
         return 1;
     }
+    printf("%d\n", n);
 
-    printf("%d", x);
+    // reading numbers from the array that were sent by producer
+    int x;
+    for(int i = 0; i<n; i++){
+        if(read(fd, &x, sizeof(int))==-1){
+            perror("Issue at reading");
+            return 1;
+        }
+        printf("%d ",x);
+    }
 
     close(fd);
 
