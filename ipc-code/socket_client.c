@@ -22,6 +22,11 @@ int main(int argc, char *argv[]){
     struct sockaddr_un serv_addr;
     char buffer[256];
 
+    /* create socket, get sockfd handle */
+    sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if (sockfd < 0) 
+        error("ERROR opening socket");
+
     /* fill in server address */
     bzero((char *) &serv_addr, sizeof(serv_addr));
     serv_addr.sun_family = AF_UNIX;
@@ -29,26 +34,21 @@ int main(int argc, char *argv[]){
 
     /* ask user for input */
     printf("Please enter the path of the file: ");
-    char*path; size_t len = 0;
-    getline(&path, &len, stdin);
-    // char path[256];
-    // fgets(path, 255, stdin);
-
-    // bzero(buffer,256);
-    printf("%s", path);
+    char*path = (char*)malloc(256*sizeof(char)); scanf("%s", path);
+    bzero(buffer,256);
 
     int fd = open(path, O_RDONLY);
-    printf("%d", fd);
 
-    // printf("%d\n", fd);
-    // if(fread(fd, buffer, sizeof(buffer)) == -1){
-    //     perror("Issue at reading");
-    //     return 1;
-    // }
-    // printf("ok ra %s", buffer);
-    // fgets(buffer, 255, fd);
+    if(fd == -1){
+        perror("Issue in opening the file");
+        return 1;
+    }
 
-    // fgets(buffer,255,stdin);
+    if(read(fd, buffer, sizeof(buffer)) == -1){
+        perror("Issue at reading");
+        return 1;
+    }
+    
 
     /* send user message to server */
     printf("Sending data...\n");
@@ -57,6 +57,8 @@ int main(int argc, char *argv[]){
     if (n < 0) 
          error("ERROR writing to socket");
 
+    free(path);
+    close(fd);
     close(sockfd);
     return 0;
 
