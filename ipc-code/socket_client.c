@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <fcntl.h>
 
 #define SOCK_PATH "unix_socket_example"
 
@@ -27,9 +28,27 @@ int main(int argc, char *argv[]){
     strcpy(serv_addr.sun_path, SOCK_PATH);
 
     /* ask user for input */
-    printf("Please enter the message: ");
-    bzero(buffer,256);
-    fgets(buffer,255,stdin);
+    printf("Please enter the path of the file: ");
+    char*path; size_t len = 0;
+    getline(&path, &len, stdin);
+    // char path[256];
+    // fgets(path, 255, stdin);
+
+    // bzero(buffer,256);
+    printf("%s", path);
+
+    int fd = open(path, O_RDONLY);
+    printf("%d", fd);
+
+    // printf("%d\n", fd);
+    // if(fread(fd, buffer, sizeof(buffer)) == -1){
+    //     perror("Issue at reading");
+    //     return 1;
+    // }
+    // printf("ok ra %s", buffer);
+    // fgets(buffer, 255, fd);
+
+    // fgets(buffer,255,stdin);
 
     /* send user message to server */
     printf("Sending data...\n");
