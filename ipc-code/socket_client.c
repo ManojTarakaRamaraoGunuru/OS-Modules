@@ -7,7 +7,7 @@
 #include <sys/un.h>
 #include <fcntl.h>
 
-#define SOCK_PATH "unix_socket_example"
+#define SOCK_PATH "unix_socket_example1"
 
 void error(char *msg)
 {
@@ -44,19 +44,31 @@ int main(int argc, char *argv[]){
         return 1;
     }
 
-    if(read(fd, buffer, sizeof(buffer)) == -1){
-        perror("Issue at reading");
-        return 1;
+    while(1){
+
+        int _read_bytes = read(fd, buffer, sizeof(buffer));
+
+        if(_read_bytes == -1){
+            perror("Issue at reading");
+            return 1;
+        }
+        else if(_read_bytes == 0){
+            break;
+        }
+
+        printf("Sending data...\n");
+        n = sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+
+        if (n < 0) 
+            error("ERROR writing to socket");
+
     }
+
+    
     
 
     /* send user message to server */
-    printf("Sending data...\n");
-    n = sendto(sockfd, buffer, strlen(buffer), 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
-
-    if (n < 0) 
-         error("ERROR writing to socket");
-
+    
     free(path);
     close(fd);
     close(sockfd);
