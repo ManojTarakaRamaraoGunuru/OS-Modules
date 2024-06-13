@@ -7,7 +7,8 @@
 #include <sys/un.h>
 #include <fcntl.h>
 
-#define SOCK_PATH "unix_socket_example1"
+#define SOCK_PATH "unix_socket_example"
+#define BUFFER_SIZE 256
 
 void error(char *msg)
 {
@@ -20,7 +21,7 @@ int main(int argc, char *argv[]){
 
     /* create socket, get sockfd handle */
     struct sockaddr_un serv_addr;
-    char buffer[256];
+    char buffer[BUFFER_SIZE];
 
     /* create socket, get sockfd handle */
     sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
@@ -34,8 +35,8 @@ int main(int argc, char *argv[]){
 
     /* ask user for input */
     printf("Please enter the path of the file: ");
-    char*path = (char*)malloc(256*sizeof(char)); scanf("%s", path);
-    bzero(buffer,256);
+    char*path = (char*)malloc(BUFFER_SIZE*sizeof(char)); scanf("%s", path);
+    bzero(buffer,BUFFER_SIZE);
 
     int fd = open(path, O_RDONLY);
 
