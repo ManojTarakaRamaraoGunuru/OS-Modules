@@ -1,8 +1,9 @@
+
 #include "alloc.h"
 #define BLOCKS PAGESIZE/MINALLOC
 
 int is_free[BLOCKS];
-
+int alloc_blocks_len[BLOCKS];
 void *base_ptr;
 
 int init_alloc(){
@@ -13,6 +14,9 @@ int init_alloc(){
     }
     for(int i = 0; i<BLOCKS; i++){
         is_free[i] = 1;
+    }
+    for(int i = 0; i<BLOCKS; i++){
+        alloc_blocks_len[i] = 0;
     }
 
     return 0;
@@ -34,7 +38,7 @@ int cleanup(){
     return 0;
 }
 
-
+// Alloc function gives the smallest best fit block (>= required length)
 char *alloc(int req_len){
     if(req_len % MINALLOC != 0){
         printf("MALLOC FAILED");
@@ -60,26 +64,22 @@ char *alloc(int req_len){
         }
     }
     if(free_start_idx == -1)return NULL;
-    for(int i = free_start_idx; i<free_start_idx + req_blocks; i++){
+    for(int i = free_start_idx; i<(free_start_idx + req_blocks); i++){
         is_free[i] = 0;
     }
+    alloc_blocks_len[free_start_idx] = req_blocks;
     return (char*)(base_ptr + (free_start_idx*MINALLOC));
 }
 
+// Merging adjacent free blocks is possible with is_free arr
 void dealloc(char *ptr){
-    int idx = (int)(ptr - (char*)base_ptr);
+    int idx = (int)(ptr - (char*)base_ptr)/MINALLOC;
 
-    int len = sizeof(ptr);
+    int len = alloc_blocks_len[idx];
+    alloc_blocks_len[idx] = 0;
 
-}
+    for(int i = idx; i<(idx + len); i++){
+        is_free[i] = 1;
+    }
 
-int main(){
-    init_alloc();
-    char*arr = alloc(1024);
-    char*arr1 = alloc(1024);
-    int cnt = 0;
-    dealloc(arr);
-    dealloc(arr1);
-    cleanup();
-    return 0;
 }
