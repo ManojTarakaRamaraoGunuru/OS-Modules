@@ -1,4 +1,4 @@
-#include "alloc.h"
+#include "ealloc.h"
 #define BLOCKS PAGESIZE/MINALLOC
 #define PAGES 4
 
@@ -6,15 +6,11 @@ int is_free[PAGES][BLOCKS];
 int alloc_blocks_len[PAGES][BLOCKS];
 int is_page_initialized[PAGES];
 void *base_ptr[PAGES];
-int page_index;
+int page_number;
 
 
-int init_alloc(){
+void init_alloc(){
     
-    if(base_ptr == MAP_FAILED){
-        return 1;
-    }
-
     for(int i = 0; i<PAGES; i++){
         is_page_initialized[i] = 0;
     }
@@ -28,43 +24,23 @@ int init_alloc(){
             alloc_blocks_len[j][i] = 0;
         }
     }
-    page_index = -1;
-
-    return 0;
+    page_number = -1;
 }
 
 
 
-int cleanup(){
-    
-    // int fd = munmap(base_ptr, PAGESIZE);
-    // if( fd == -1){
-    //     return 1;
-    // }
-    return 0;
+void cleanup(){
+    return;
 }
 
-// Alloc function gives the smallest best fit block (>= required length)
-char *alloc(int req_len){
-
-    if(req_len % MINALLOC != 0){
-        printf("MALLOC FAILED");
-        return NULL;
-    }
+int get_free_start_idx(int page_number, int req_len, int req_blocks){
     
-    if(page_index == -1){
-        page_index++;
-        base_ptr[page_index] = mmap(NULL, PAGESIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
-    }
-
-    int req_blocks = req_len/MINALLOC;
 
     int min_free_slot = PAGESIZE, free_start_idx = -1;
-
     for(int i = 0; i<BLOCKS; i++){
         int len = 0;
-        if(is_free[i] == 1){
-            for(int j = i; j<BLOCKS && is_free[j]==1; j++){
+        if(is_free[page_number][i] == 1){
+            for(int j = i; j<BLOCKS && is_free[page_number][j]==1; j++){
                 len++;
             }
             
@@ -75,23 +51,57 @@ char *alloc(int req_len){
             i += (len-1);
         }
     }
+    return free_start_idx;
+}
+
+// Alloc function gives the smallest best fit block (>= required length)
+char *alloc(int req_len){
+    fflush(stdout);
+    if(req_len % MINALLOC != 0){
+        printf("MALLOC FAILED");
+        return NULL;
+    }
+    
+    if(page_number == -1){
+        page_number++;
+        base_ptr[page_number] = mmap(NULL, PAGESIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    }
+
+    int req_blocks = req_len/MINALLOC;
+    int free_start_idx = get_free_start_idx(page_number, req_len, req_blocks);
+    printf("Free Start Index %d", free_start_idx);
+    if(free_start_idx == -1){
+        page_number++;
+        if(page_number == PAGES){
+            printf("Maximum page limit reached and alloc failed");
+            return NULL;
+        }else{
+            req_blocks = req_len/MINALLOC;
+            free_start_idx = get_free_start_idx(page_number, req_len, req_blocks);
+            // printf("Free Start Index after adj %d", free_start_idx);
+            base_ptr[page_number] = mmap(NULL, PAGESIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+        }
+    }
+
     if(free_start_idx == -1)return NULL;
     for(int i = free_start_idx; i<(free_start_idx + req_blocks); i++){
-        is_free[i] = 0;
+        is_free[page_number][i] = 0;
     }
-    alloc_blocks_len[free_start_idx] = req_blocks;
-    return (char*)(base_ptr + (free_start_idx*MINALLOC));
+
+    alloc_blocks_len[page_number][free_start_idx] = req_blocks;
+    return (char*)(base_ptr[page_number] + (free_start_idx*MINALLOC));
 }
 
 // Merging adjacent free blocks is possible with is_free arr
 void dealloc(char *ptr){
+    
     int idx = (int)(ptr - (char*)base_ptr)/MINALLOC;
 
-    int len = alloc_blocks_len[idx];
-    alloc_blocks_len[idx] = 0;
+    int len = alloc_blocks_len[page_number][idx];
+    alloc_blocks_len[page_number][idx] = 0;
 
     for(int i = idx; i<(idx + len); i++){
-        is_free[i] = 1;
+        is_free[page_number][i] = 1;
     }
 
 }
