@@ -24,6 +24,7 @@ void init_alloc(){
             alloc_blocks_len[j][i] = 0;
         }
     }
+    for(int i = 0; i<PAGES; i++)base_ptr[i] = NULL;
     page_number = -1;
 }
 
@@ -55,8 +56,9 @@ int get_free_start_idx(int page_number, int req_len, int req_blocks){
 }
 
 // Alloc function gives the smallest best fit block (>= required length)
+
 char *alloc(int req_len){
-    fflush(stdout);
+    // fflush(stdout);
     if(req_len % MINALLOC != 0){
         printf("MALLOC FAILED");
         return NULL;
@@ -69,39 +71,36 @@ char *alloc(int req_len){
 
     int req_blocks = req_len/MINALLOC;
     int free_start_idx = get_free_start_idx(page_number, req_len, req_blocks);
-    printf("Free Start Index %d", free_start_idx);
     if(free_start_idx == -1){
         page_number++;
         if(page_number == PAGES){
-            printf("Maximum page limit reached and alloc failed");
             return NULL;
-        }else{
-            req_blocks = req_len/MINALLOC;
-            free_start_idx = get_free_start_idx(page_number, req_len, req_blocks);
-            // printf("Free Start Index after adj %d", free_start_idx);
-            base_ptr[page_number] = mmap(NULL, PAGESIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
         }
+        free_start_idx = get_free_start_idx(page_number, req_len, req_blocks);
+        base_ptr[page_number] = mmap(NULL, PAGESIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
     }
 
     if(free_start_idx == -1)return NULL;
     for(int i = free_start_idx; i<(free_start_idx + req_blocks); i++){
         is_free[page_number][i] = 0;
     }
+    
 
     alloc_blocks_len[page_number][free_start_idx] = req_blocks;
     return (char*)(base_ptr[page_number] + (free_start_idx*MINALLOC));
+    
 }
 
 // Merging adjacent free blocks is possible with is_free arr
 void dealloc(char *ptr){
-    
-    int idx = (int)(ptr - (char*)base_ptr)/MINALLOC;
+    printf("%d\n", ptr);
+    // int idx = (int)(ptr - (char*)base_ptr)/MINALLOC;
 
-    int len = alloc_blocks_len[page_number][idx];
-    alloc_blocks_len[page_number][idx] = 0;
+    // int len = alloc_blocks_len[page_number][idx];
+    // alloc_blocks_len[page_number][idx] = 0;
 
-    for(int i = idx; i<(idx + len); i++){
-        is_free[page_number][i] = 1;
-    }
+    // for(int i = idx; i<(idx + len); i++){
+    //     is_free[page_number][i] = 1;
+    // }
 
 }
