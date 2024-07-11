@@ -152,11 +152,11 @@ int main(int argc, char *argv[])
 		pthread_join(threads[i],NULL);
 
 	// TESTING SCRIPT 
-	for(int i=0; i<read_num_threads*2; i++)
-		printf("Reader %d Lock Time: %ld Unlock Time: %ld\n", i, readerAcquireTime[i], readerReleaseTime[i]);
+	// for(int i=0; i<read_num_threads*2; i++)
+	// 	printf("Reader %d Lock Time: %ld Unlock Time: %ld\n", i, readerAcquireTime[i], readerReleaseTime[i]);
 
-	for (int i = 0; i < write_num_threads; i++)
-		printf("Writer %d Lock Time: %ld Unlock Time: %ld\n", i, writerAcquireTime[i], writerReleaseTime[i]);
+	// for (int i = 0; i < write_num_threads; i++)
+	// 	printf("Writer %d Lock Time: %ld Unlock Time: %ld\n", i, writerAcquireTime[i], writerReleaseTime[i]);
 
 	long *max_reader_acquire_time_first_half = max_element(readerAcquireTime, readerAcquireTime + read_num_threads);
 	long *min_reader_release_time_first_half = min_element(readerReleaseTime, readerReleaseTime + read_num_threads);
