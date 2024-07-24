@@ -3,21 +3,19 @@ extern struct filehandle_t file_handle_array[MAX_OPEN_FILES]; // Array for stori
 
 int get_inode_num(char* filename){
 	/* retunrns ind*/
-	struct superblock_t* superblock = (struct superblock_t*)malloc(sizeof(struct superblock_t));
 	int inode_num = -1;
 	for(int i = 0; i<NUM_INODES; i++){
-		if(superblock->inode_freelist[i] == INODE_IN_USE){
-			struct inode_t* inode_ptr = (struct inode_t*)malloc(sizeof(struct inode_t));
-			simplefs_readInode(i, inode_ptr);
-			if(strcmp(inode_ptr->name, filename) == 0){
-				inode_num = i;
-				free(inode_ptr);
-				break;
-			}
+		
+		struct inode_t* inode_ptr = (struct inode_t*)malloc(sizeof(struct inode_t));
+		simplefs_readInode(i, inode_ptr);
+		if(strcmp(inode_ptr->name, filename) == 0){
+			inode_num = i;
 			free(inode_ptr);
+			break;
 		}
+		free(inode_ptr);
+		
 	}
-	free(superblock);
 	return inode_num;
 }
 
@@ -27,9 +25,9 @@ int simplefs_create(char *filename){
 	*/
 	
 	
-	if(get_inode_num(filename) != -1){ 
-		return -1;
-	}
+	// if(get_inode_num(filename) != -1){ 
+	// 	return -1;
+	// }
 
 	int inode_num = simplefs_allocInode();
 	if(inode_num == -1){
