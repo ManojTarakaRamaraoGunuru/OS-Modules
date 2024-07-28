@@ -2,7 +2,7 @@
 extern struct filehandle_t file_handle_array[MAX_OPEN_FILES]; // Array for storing opened files
 
 int get_inode_num(char* filename){
-	/* retunrns ind*/
+	/* returns inode number of the file*/
 	int inode_num = -1;
 	for(int i = 0; i<NUM_INODES; i++){
 		
@@ -17,6 +17,15 @@ int get_inode_num(char* filename){
 		
 	}
 	return inode_num;
+}
+
+int get_file_handle_idx(){
+	for(int i = 0; i<MAX_OPEN_FILES; i++){
+		if(file_handle_array[i].inode_num == -1){
+			return i;
+		}
+	}
+	return -1;
 }
 
 int simplefs_create(char *filename){
@@ -59,14 +68,23 @@ int simplefs_open(char *filename){
     /*
 	    open file with name `filename`
 	*/
-    return -1;
+	int inode_num = get_inode_num(filename);
+	if(inode_num == -1)return -1;
+
+	int file_handle = get_file_handle_idx()
+	if(file_handle == -1)return -1;
+
+	file_handle_array[file_handle].inode_number = inode_num;
+	file_handle_array[file_handle].offset = 0;
+    return file_handle;
 }
 
 void simplefs_close(int file_handle){
     /*
 	    close file pointed by `file_handle`
 	*/
-
+	file_handle_array[file_handle].inode_number = -1;
+	file_handle_array[file_handle].offset = 0;
 }
 
 int simplefs_read(int file_handle, char *buf, int nbytes){
