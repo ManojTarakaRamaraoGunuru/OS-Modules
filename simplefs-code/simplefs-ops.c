@@ -117,10 +117,13 @@ int simplefs_read(int file_handle, char *buf, int nbytes){
 	int initial_offset = curr_offset;
 	while(copied_bytes<nbytes){
 
-		int roffset = curr_offset%BLOCKSIZE;
+		int roffset = curr_offset%BLOCKSIZE;          // Already this much, read after this
 		int rblock_idx = curr_offset/BLOCKSIZE;
 
-		size_t buf_size = min(BLOCKSIZE - roffset, nbytes  - copied_bytes);
+		// Two cases possible
+		// case1: 0-6-BLOCK_SIZE....0-6 was already read, BLOCKSIZE - 6 is remaining (second portion)
+		// case2: Need to read (BLOCKSIZE+6 overall), alreay read BLOCKSIZE, yet to read 0-6 (first portion)
+		size_t buf_size = min(BLOCKSIZE - roffset, nbytes  - copied_bytes);   
 		char*temp_buf = (char*)malloc(BLOCKSIZE*sizeof(char));
 		simplefs_readDataBlock(inode_ptr->direct_blocks[rblock_idx], temp_buf);
 		
@@ -155,32 +158,36 @@ int simplefs_write(int file_handle, char *buf, int nbytes){
 	int copied_bytes = 0;
 	
 	while(copied_bytes<nbytes){
-		int filled_wblock = inode_ptr->file_size % BLOCKSIZE;
+		int woffset = inode_ptr->file_size % BLOCKSIZE; // already prefilled wblock offset
 		int wblock_idx = inode_ptr->file_size/BLOCKSIZE;
 		
-		if(filled_wblock == 0){
+		if(woffset == 0){
 			int idx = simplefs_allocDataBlock();
 			if(idx == -1)return -1;
 			inode_ptr->direct_blocks[wblock_idx] = idx;
 		}
-		size_t buf_size = min(BLOCKSIZE - filled_wblock, nbytes - copied_bytes);
+		// Two cases possible
+		// case1: 0-6-BLOCK_SIZE....0-6 is already filled, BLOCKSIZE - 6 is remaining (second portion)
+		// case2: Need to fill (BLOCKSIZE+6 overall), already filled BLOCKSIZE, 0-6 yet to be filled (first portion)
+		size_t buf_size = min(BLOCKSIZE - woffset, nbytes - copied_bytes);
 		
-		char* temp_buf = (char*)malloc(filled_wblock+buf_size*sizeof(char));
+		char* temp_buf = (char*)malloc(woffset+buf_size*sizeof(char));
 		
-		if(filled_wblock > 0){
+		if(woffset > 0){
+			// simplefs_writeDatablock writes entire block at one time starting from offset 0
+			// so making a copy of already prefilled block in the temporary buffer
 			char*wblock = (char*)malloc(BLOCKSIZE*sizeof(char*));
 			simplefs_readDataBlock(inode_ptr->direct_blocks[wblock_idx], wblock);
-			memcpy(temp_buf,wblock,filled_wblock);
+			memcpy(temp_buf,wblock,woffset);
 			free(wblock);	
 		}
 
-		memcpy(temp_buf+filled_wblock, buf + copied_bytes, buf_size);
-
+		memcpy(temp_buf+woffset, buf + copied_bytes, buf_size);
 		simplefs_writeDataBlock(inode_ptr->direct_blocks[wblock_idx], temp_buf);
 		free(temp_buf);
 
 		copied_bytes += buf_size;
-		inode_ptr->file_size += buf_size;
+		inode_ptr->file_size += buf_size;			// file size will be incremented based on the content you wrote
 	}
 	simplefs_writeInode(inode_num, inode_ptr);
 	free(inode_ptr);
