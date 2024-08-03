@@ -121,12 +121,10 @@ int simplefs_read(int file_handle, char *buf, int nbytes){
 		int rblock_idx = curr_offset/BLOCKSIZE;
 
 		size_t buf_size = min(BLOCKSIZE - roffset, nbytes  - copied_bytes);
-		char*temp_buf = (char*)malloc(buf_size*sizeof(char));
+		char*temp_buf = (char*)malloc(BLOCKSIZE*sizeof(char));
 		simplefs_readDataBlock(inode_ptr->direct_blocks[rblock_idx], temp_buf);
 		
-		// printf("%d %d %s\n",copied_bytes, buf_size, temp_buf);
-
-		memcpy(buf + copied_bytes, temp_buf, buf_size);
+		memcpy(buf + copied_bytes, temp_buf+roffset, buf_size);
 		free(temp_buf);
 
 		curr_offset += buf_size;
@@ -154,8 +152,6 @@ int simplefs_write(int file_handle, char *buf, int nbytes){
 		return -1;
 	}
 
-	// int initial_fill_size = curr_offset;
-	// printf("initial_offset: %d ", initial_fill_size);
 	int copied_bytes = 0;
 	
 	while(copied_bytes<nbytes){
@@ -168,17 +164,24 @@ int simplefs_write(int file_handle, char *buf, int nbytes){
 			inode_ptr->direct_blocks[wblock_idx] = idx;
 		}
 		size_t buf_size = min(BLOCKSIZE - filled_wblock, nbytes - copied_bytes);
+		
+		char* temp_buf = (char*)malloc(filled_wblock+buf_size*sizeof(char));
+		
+		if(filled_wblock > 0){
+			char*wblock = (char*)malloc(BLOCKSIZE*sizeof(char*));
+			simplefs_readDataBlock(inode_ptr->direct_blocks[wblock_idx], wblock);
+			memcpy(temp_buf,wblock,filled_wblock);
+			free(wblock);	
+		}
 
-		char* temp_buf = (char*)malloc(buf_size*sizeof(char));
-		memcpy(temp_buf, buf + copied_bytes, buf_size);
-		// printf("%d %d %s\n",buf_size, inode_ptr->file_size temp_buf);
+		memcpy(temp_buf+filled_wblock, buf + copied_bytes, buf_size);
+
 		simplefs_writeDataBlock(inode_ptr->direct_blocks[wblock_idx], temp_buf);
 		free(temp_buf);
 
 		copied_bytes += buf_size;
 		inode_ptr->file_size += buf_size;
 	}
-	// printf("\n");
 	simplefs_writeInode(inode_num, inode_ptr);
 	free(inode_ptr);
 
@@ -190,7 +193,6 @@ int simplefs_seek(int file_handle, int nseek){
     /*
 	   increase `file_handle` offset by `nseek`
 	*/
-	// printf("File Handle %d\n", file_handle);
 
 	int curr_offset = file_handle_array[file_handle].offset;
 	int inode_num = file_handle_array[file_handle].inode_number;
