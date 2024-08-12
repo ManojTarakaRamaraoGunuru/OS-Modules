@@ -57,7 +57,6 @@ int make_connetion(){
     
     /* fill in server address in sockaddr_in datastructure */
     server = gethostbyname(tokens[1]);
-    printf("Trying to connect to port: %d  and host: %s\n", portno,tokens[1]);
     if (server == NULL) {
         fprintf(stderr,"ERROR, no such host\n");
         exit(0);
@@ -88,8 +87,24 @@ void send_token_information(int len){
 
 
 int main(){
-    int sock_fd;
     fflush(stdout);
+    
+
+    char buffer[256];
+    while(1){
+        /*Client cannot proceed frther until it make a successful connection with the server*/
+        /* input format : connect <server> <port> */
+        printf("Enter the message:");
+        bzero(buffer, 256);
+        fgets(buffer, 255, stdin);
+        int len =  tokenize(buffer, 256);
+        if(strcmp(tokens[0], "connect") == 0 && make_connetion() == 1){
+            printf("Ok\n");
+            break;
+        }
+        else printf("connection error");
+    }
+
     while(1){
         printf("Enter the message:");
         char buffer[256];
@@ -100,22 +115,9 @@ int main(){
         int len =  tokenize(buffer, 256);
         if(n<0)error("write failure");
 
-        if(strcmp(tokens[0], "connect")==0){
-
-            if(make_connetion() == 1)
-                printf("Ok\n");
-            else printf("connection error");
-
-        }else if(strcmp(tokens[0], "disconnect")==0){
-            printf("Ok");
-
-        }else if(strcmp(tokens[0], "create") == 0){
-
-            bzero(buffer, 256);
-            n = read(sock_fd, buffer, 255);
-            printf("Received from server: %s\n", buffer);
-            
-        }
+        bzero(buffer, 256);
+        n = read(sockfd, buffer, 255);
+        printf("Received from server: %s\n", buffer);
 
         free(tokens);
     }

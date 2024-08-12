@@ -134,7 +134,9 @@ int main(int argc, char *argv[]){
         // }else if(strcmp(tokens[0], "disconnect") == 0){
 
         // }
-        n2 = send_msg("Ok\n");
+        // n2 = send_msg("Ok\n");
+        n2 = write(newsockfd,"I got your message",18);
+        if (n2 < 0) error("ERROR writing to socket");
         free(tokens);
 
     }while(n1>0 &&  n2>0);
