@@ -118,6 +118,9 @@ int main(){
         bzero(buffer, 256);
         n = read(sockfd, buffer, 255);
         printf("Received from server: %s\n", buffer);
+        if(strcmp("disconnecting", buffer) == 0){
+            break;
+        }
 
         free(tokens);
     }

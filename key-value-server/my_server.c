@@ -90,24 +90,88 @@ int tokenize(){
 }
 
 int send_msg(char* msg){
-    n2 = write(newsockfd,msg,sizeof(msg));
+    n2 = write(newsockfd,msg,100);
     if(n2<0)error("ERROR writing from socket");
     return n2;
 }
 
-void create_key_value_pair(){
+char* create_key_value_pair(){
     /*
         create <key> <value-size> <value>    
     */
-    key_arr[idx] = atoi(tokens[1]);
+   int key = atoi(tokens[1]);
+   if(idx == MAX_KEYS){
+    return "storage full";
+   }
+   for(int i = 0; i<idx; i++){
+    if(key_arr[i] == key){
+        return "already key exists";
+    }
+   }
+    key_arr[idx] = key;
     value_len[idx] = atoi(tokens[2]);
     value_arr[idx] = (char*)malloc(sizeof(char)*value_len[idx]);
     strcpy(value_arr[idx], tokens[3]);
-    printf("Added key:%d Value:%s Size:%d\n", key_arr[idx], value_arr[idx], value_len[idx]);
+    // printf("Added key:%d Value:%s Size:%d\n", key_arr[idx], value_arr[idx], value_len[idx]);
     idx++;
+    return "Key Value pair Added";
 }
 
+char* Read(){
+    // read <key>
+    int key  = atoi(tokens[1]);
+    for(int i = 0; i<idx; i++){
+        if(key_arr[i] == key){
+            return value_arr[i];
+        }
+    }
+    return "No such key";
+}
 
+char* update(){
+    // update <key> <value-size> <value>
+    int key = atoi(tokens[1]);
+
+    for(int i = 0; i<idx; i++){
+        if(key_arr[i] == key){
+            free(value_arr[i]);
+            value_len[i] = atoi(tokens[2]);
+            value_arr[i]= (char*)malloc(sizeof(value_len[idx]));
+            strcpy(value_arr[i], tokens[3]);
+            return "Updated";
+        }
+   }
+   return "No such key";
+}
+
+char* delete(){
+    //delete <key>
+    int key = atoi(tokens[1]);
+
+    for(int i = 0; i<idx; i++){
+        if(key_arr[i] == key){
+            free(value_arr[i]);
+            key_arr[i] = -1;
+            value_len[i] = -1;
+            return "Deleted key";
+        }
+   }
+   return "No such key";
+}
+
+void disconnect(char*argv[]){
+    if (newsockfd >= 0) {
+        close(newsockfd);
+        newsockfd = -1; // Reset to an invalid value
+    }
+
+    // Close the main server socket if needed
+    if (sockfd >= 0) {
+        close(sockfd);
+        sockfd = -1; // Reset to an invalid value
+    }
+    make_server(argv);
+}
 
 int main(int argc, char *argv[]){
     fflush(stdout);
@@ -123,20 +187,30 @@ int main(int argc, char *argv[]){
         int len = tokenize();
 
         if(strcmp(tokens[0], "create") == 0){
-            create_key_value_pair();
+            char*msg = create_key_value_pair();
+            n2 = send_msg(msg);
         }
-        // else if(strcmp(tokens[0], "read") == 0){
-
-        // }else if(strcmp(tokens[0], "update")== 0){
-
-        // }else if(strcmp(tokens[0], "delete") == 0){
-
-        // }else if(strcmp(tokens[0], "disconnect") == 0){
-
+        else if(strcmp(tokens[0], "read") == 0){
+            char*msg = Read();
+            n2 = send_msg(msg);
+        }
+        else if(strcmp(tokens[0], "update")== 0){
+            char*msg = update();
+            n2 = send_msg(msg);
+        }
+        else if(strcmp(tokens[0], "delete") == 0){
+            char*msg = delete();
+            n2 = send_msg(msg);
+        }
+        // else if(strcmp(tokens[0], "disconnect") == 0){
+        //     n2 = send_msg("disconnecting");
+        //     disconnect(argv);
         // }
-        // n2 = send_msg("Ok\n");
-        n2 = write(newsockfd,"I got your message",18);
-        if (n2 < 0) error("ERROR writing to socket");
+        else{
+            // n2 = write(newsockfd,"I got your message",18);
+            // if (n2 < 0) error("ERROR writing to socket");
+            n2 = send_msg("I got your message");
+        }
         free(tokens);
 
     }while(n1>0 &&  n2>0);
