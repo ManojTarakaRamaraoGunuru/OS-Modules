@@ -159,18 +159,24 @@ char* delete(){
    return "No such key";
 }
 
-void disconnect(char*argv[]){
+void connect_again(){
+    /* listen for incoming connection requests */
+    listen(sockfd,5);
+    clilen = sizeof(cli_addr);
+
+    /* accept a new request, create a newsockfd */
+
+    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+    if (newsockfd < 0) 
+    error("ERROR on accept");
+}
+
+void disconnect(){
     if (newsockfd >= 0) {
         close(newsockfd);
         newsockfd = -1; // Reset to an invalid value
     }
-
-    // Close the main server socket if needed
-    if (sockfd >= 0) {
-        close(sockfd);
-        sockfd = -1; // Reset to an invalid value
-    }
-    make_server(argv);
+    connect_again();
 }
 
 int main(int argc, char *argv[]){
@@ -202,13 +208,11 @@ int main(int argc, char *argv[]){
             char*msg = delete();
             n2 = send_msg(msg);
         }
-        // else if(strcmp(tokens[0], "disconnect") == 0){
-        //     n2 = send_msg("disconnecting");
-        //     disconnect(argv);
-        // }
+        else if(strcmp(tokens[0], "disconnect") == 0){
+            n2 = send_msg("disconnecting");
+            disconnect(argv);
+        }
         else{
-            // n2 = write(newsockfd,"I got your message",18);
-            // if (n2 < 0) error("ERROR writing to socket");
             n2 = send_msg("I got your message");
         }
         free(tokens);
