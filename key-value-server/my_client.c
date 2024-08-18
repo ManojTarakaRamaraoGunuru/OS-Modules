@@ -91,19 +91,7 @@ int main(){
     
 
     char buffer[256];
-    while(1){
-        /*Client cannot proceed frther until it make a successful connection with the server*/
-        /* input format : connect <server> <port> */
-        printf("Enter the message:");
-        bzero(buffer, 256);
-        fgets(buffer, 255, stdin);
-        int len =  tokenize(buffer, 256);
-        if(strcmp(tokens[0], "connect") == 0 && make_connetion() == 1){
-            printf("Ok\n");
-            break;
-        }
-        else printf("connection error");
-    }
+    int connection_flag = 0;
 
     while(1){
         printf("Enter the message:");
@@ -111,15 +99,25 @@ int main(){
         bzero(buffer, 256);
         fgets(buffer, 255, stdin);
 
-        int n = write(sockfd, buffer, TOKEN_SIZE);
-        int len =  tokenize(buffer, 256);
-        if(n<0)error("write failure");
+        if(connection_flag == 0){
+            int len =  tokenize(buffer, 256);
+            if(strcmp(tokens[0], "connect") == 0 && make_connetion() == 1){
+                printf("Ok\n");
+                connection_flag = 1;
+            }
+        }
+        else{
 
-        bzero(buffer, 256);
-        n = read(sockfd, buffer, 255);
-        printf("Received from server: %s\n", buffer);
-        if(strcmp("disconnecting", buffer) == 0){
-            break;
+            int n = write(sockfd, buffer, TOKEN_SIZE);
+            int len =  tokenize(buffer, 256);
+            if(n<0)error("write failure");
+
+            bzero(buffer, 256);
+            n = read(sockfd, buffer, 255);
+            printf("Received from server: %s\n", buffer);
+            if(strcmp("disconnecting", buffer) == 0){
+                break;
+            }
         }
 
         free(tokens);
